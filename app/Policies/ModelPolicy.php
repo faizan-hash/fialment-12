@@ -4,6 +4,8 @@ namespace App\Policies;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 class ModelPolicy
 {
@@ -20,7 +22,16 @@ class ModelPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo('view any ' . $this->getPermissionName());
+        try {
+            if ($user->hasPermissionTo('view any ' . $this->getPermissionName())) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Permission doesn't exist, use fallback
+        }
+        
+        // Fallback to role-based check
+        return $this->hasAdminRole($user);
     }
 
     /**
@@ -28,7 +39,16 @@ class ModelPolicy
      */
     public function view(User $user, Model $model): bool
     {
-        return $user->hasPermissionTo('view ' . $this->getPermissionName());
+        try {
+            if ($user->hasPermissionTo('view ' . $this->getPermissionName())) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Permission doesn't exist, use fallback
+        }
+        
+        // Fallback to role-based check
+        return $this->hasAdminRole($user);
     }
 
     /**
@@ -36,7 +56,16 @@ class ModelPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo('create ' . $this->getPermissionName());
+        try {
+            if ($user->hasPermissionTo('create ' . $this->getPermissionName())) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Permission doesn't exist, use fallback
+        }
+        
+        // Fallback to role-based check
+        return $this->hasAdminRole($user);
     }
 
     /**
@@ -44,7 +73,23 @@ class ModelPolicy
      */
     public function update(User $user, Model $model): bool
     {
-        return $user->hasPermissionTo('update ' . $this->getPermissionName());
+        try {
+            if ($user->hasPermissionTo('update ' . $this->getPermissionName())) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Fall back to edit permission
+            try {
+                if ($user->hasPermissionTo('edit ' . $this->getPermissionName())) {
+                    return true;
+                }
+            } catch (PermissionDoesNotExist $e) {
+                // Both permissions don't exist, use fallback
+            }
+        }
+        
+        // Fallback to role-based check
+        return $this->hasAdminRole($user);
     }
 
     /**
@@ -52,7 +97,16 @@ class ModelPolicy
      */
     public function delete(User $user, Model $model): bool
     {
-        return $user->hasPermissionTo('delete ' . $this->getPermissionName());
+        try {
+            if ($user->hasPermissionTo('delete ' . $this->getPermissionName())) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Permission doesn't exist, use fallback
+        }
+        
+        // Fallback to role-based check
+        return $this->hasAdminRole($user);
     }
 
     /**
@@ -60,7 +114,16 @@ class ModelPolicy
      */
     public function restore(User $user, Model $model): bool
     {
-        return $user->hasPermissionTo('restore ' . $this->getPermissionName());
+        try {
+            if ($user->hasPermissionTo('restore ' . $this->getPermissionName())) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Permission doesn't exist, use fallback
+        }
+        
+        // Fallback to role-based check
+        return $this->hasAdminRole($user);
     }
 
     /**
@@ -68,7 +131,16 @@ class ModelPolicy
      */
     public function forceDelete(User $user, Model $model): bool
     {
-        return $user->hasPermissionTo('force delete ' . $this->getPermissionName());
+        try {
+            if ($user->hasPermissionTo('force delete ' . $this->getPermissionName())) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Permission doesn't exist, use fallback
+        }
+        
+        // Fallback to role-based check
+        return $this->hasAdminRole($user);
     }
     
     /**
@@ -78,5 +150,13 @@ class ModelPolicy
     {
         // Default implementation - should be overridden by child classes
         return 'model';
+    }
+    
+    /**
+     * Check if the user has an admin role.
+     */
+    protected function hasAdminRole(User $user): bool
+    {
+        return $user->hasRole('admin');
     }
 }

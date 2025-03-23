@@ -20,6 +20,14 @@ class Feedback extends Model
         'skill_id',
         'practice_id',
         'comments',
+        'is_positive',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     */
+    protected $casts = [
+        'is_positive' => 'boolean',
     ];
 
     /**
@@ -33,7 +41,7 @@ class Feedback extends Model
     /**
      * Get the user who received the feedback.
      */
-    public function receiver(): BelongsTo
+    public function recipient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'receiver_id');
     }
@@ -60,5 +68,13 @@ class Feedback extends Model
     public function practice(): BelongsTo
     {
         return $this->belongsTo(Practice::class);
+    }
+
+    /**
+     * Alias for the recipient relation for backward compatibility.
+     */
+    public function receiver(): BelongsTo
+    {
+        return $this->recipient();
     }
 }

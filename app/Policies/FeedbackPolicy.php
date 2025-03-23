@@ -6,6 +6,7 @@ use App\Models\Feedback;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 class FeedbackPolicy extends ModelPolicy
 {
@@ -23,20 +24,24 @@ class FeedbackPolicy extends ModelPolicy
     public function update(User $user, Model $model): bool
     {
         // First check if user has the specific permission
-        if ($user->hasPermissionTo('update feedback')) {
-            return true;
+        try {
+            if ($user->hasPermissionTo('update feedback')) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Permission doesn't exist, try the next one
         }
         
         // Fallback to edit feedback permission if update isn't available
-        if ($user->hasPermissionTo('edit feedback')) {
-            return true;
+        try {
+            if ($user->hasPermissionTo('edit feedback')) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Permission doesn't exist, use role-based check
         }
         
         // Admin can always update
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-        
-        return false;
+        return $user->hasRole('admin');
     }
 }

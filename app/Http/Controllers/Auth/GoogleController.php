@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\TeamInvitationController;
+use App\Models\TeamInvitation;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -54,30 +56,17 @@ class GoogleController extends Controller
             // Check if there's a pending invitation in the session
             $pendingInvitation = session('pending_invitation');
             
-            \Illuminate\Support\Facades\Log::info('Google callback - checking pending invitation', [
-                'has_pending_invitation' => !empty($pendingInvitation),
-                'token' => $pendingInvitation,
-                'user_id' => $user->id,
-                'user_email' => $user->email
-            ]);
-            
-            // Directly process the invitation here instead of relying on middleware
+            // Process the invitation if it exists
             if ($pendingInvitation) {
                 session()->forget('pending_invitation');
                 
-                $invitation = \App\Models\TeamInvitation::where('token', $pendingInvitation)
+                $invitation = TeamInvitation::where('token', $pendingInvitation)
                     ->whereNull('accepted_at')
                     ->whereNull('rejected_at')
                     ->first();
                 
                 if ($invitation && $invitation->email === $user->email) {
-                    \Illuminate\Support\Facades\Log::info('Google callback - processing invitation', [
-                        'invitation_id' => $invitation->id,
-                        'invitation_email' => $invitation->email,
-                        'user_email' => $user->email
-                    ]);
-                    
-                    $controller = new \App\Http\Controllers\TeamInvitationController();
+                    $controller = new TeamInvitationController();
                     return $controller->processInvitationAcceptance($invitation, $user);
                 }
             }

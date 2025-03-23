@@ -75,12 +75,6 @@ class TeamInvitationController extends Controller
                 ->where('id', $invitation->id)
                 ->update(['accepted_at' => now()]);
             
-            \Illuminate\Support\Facades\Log::info('Invitation update result', [
-                'invitation_id' => $invitation->id,
-                'updated' => $updated,
-                'user_id' => $user->id
-            ]);
-            
             // Then attach the user to the team
             if (!$user->teams->contains($invitation->team_id)) {
                 $user->teams()->attach($invitation->team_id, ['role' => $invitation->role]);
@@ -90,14 +84,6 @@ class TeamInvitationController extends Controller
             if (!$user->hasRole($invitation->role)) {
                 $user->assignRole($invitation->role);
             }
-            
-            // Log for debugging
-            \Illuminate\Support\Facades\Log::info('Invitation processed', [
-                'invitation_id' => $invitation->id,
-                'token' => $invitation->token,
-                'user_id' => $user->id,
-                'team_id' => $invitation->team_id
-            ]);
             
             return redirect()->route('filament.admin.pages.dashboard')
                 ->with('success', 'You have successfully joined the team: ' . $invitation->team->name);

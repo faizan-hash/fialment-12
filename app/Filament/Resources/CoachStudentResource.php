@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CoachStudentResource\Pages;
 use App\Filament\Resources\CoachStudentResource\RelationManagers;
 use App\Models\CoachStudent;
+use App\Models\User;
 use App\Filament\BaseResource;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -30,17 +31,36 @@ class CoachStudentResource extends BaseResource
                 Forms\Components\Select::make('team_id')
                     ->relationship('team', 'name')
                     ->required()
-                    ->reactive(),
+                    ->reactive()
+                    ->afterStateUpdated(fn (Forms\Components\Select $component) => 
+                        $component->getContainer()->getComponent('coach_id')->getContainer()->getComponent('student_id')->setState('')
+                    ),
                 Forms\Components\Select::make('coach_id')
-                    ->relationship('coach', 'name', fn (Builder $query) => 
-                        $query->where('role', 'personal_coach')
+                    ->relationship(
+                        'coach', 
+                        'name', 
+                        fn (Builder $query, $get) => $query
+                            ->role('personal_coach')
+                            ->whereHas('teams', fn (Builder $q) => 
+                                $q->where('teams.id', $get('team_id'))
+                            )
                     )
+                    ->preload()
+                    ->searchable()
                     ->required()
                     ->label('Coach'),
                 Forms\Components\Select::make('student_id')
-                    ->relationship('student', 'name', fn (Builder $query) => 
-                        $query->where('role', 'student')
+                    ->relationship(
+                        'student', 
+                        'name', 
+                        fn (Builder $query, $get) => $query
+                            ->role('student')
+                            ->whereHas('teams', fn (Builder $q) => 
+                                $q->where('teams.id', $get('team_id'))
+                            )
                     )
+                    ->preload()
+                    ->searchable()
                     ->required()
                     ->label('Student'),
             ]);

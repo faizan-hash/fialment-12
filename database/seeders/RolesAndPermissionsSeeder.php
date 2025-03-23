@@ -166,115 +166,96 @@ class RolesAndPermissionsSeeder extends Seeder
             'force delete role',
         ];
 
+        // Create all permissions
         foreach ($permissions as $permission) {
             Permission::create(['name' => $permission]);
         }
 
-        // Create roles and assign permissions
-        
-        // Admin / Project Advisor
-        $adminRole = Role::create(['name' => 'admin']);
+        // Create roles
+        $roles = [
+            'admin' => 'Administrator with full system access',
+            'student' => 'Regular student user',
+            'subject_mentor' => 'Subject mentor who provides feedback on skills',
+            'personal_coach' => 'Personal coach who mentors specific students'
+        ];
+
+        foreach ($roles as $name => $description) {
+            Role::create(['name' => $name, 'description' => $description]);
+        }
+
+        // Assign all permissions to admin role
+        $adminRole = Role::where('name', 'admin')->first();
         $adminRole->givePermissionTo(Permission::all());
         
-        // Student
-        $studentRole = Role::create(['name' => 'student']);
+        // Assign appropriate permissions to student role
+        $studentRole = Role::where('name', 'student')->first();
         $studentPermissions = [
+            // Team viewing permissions
             'view teams',
-            'view any teams',
             'view team',
-            'view any team',
-            'view team-invitations',
-            'view any team-invitations',
-            'view team-invitation',
-            'view any team-invitation',
-            'view skills',
-            'view any skills',
-            'view skill',
-            'view any skill',
-            'view practices',
-            'view any practices',
-            'view practice',
-            'view any practice',
-            'create feedback',
-            'view own feedback',
-            'view any feedback',
+            
+            // Feedback permissions
             'view feedback',
+            'view own feedback',
+            
+            // View skills and practices
+            'view skills',
+            'view skill',
+            'view practices',
+            'view practice',
         ];
         $studentRole->givePermissionTo($studentPermissions);
         
-        // Subject Mentor
-        $mentorRole = Role::create(['name' => 'subject_mentor']);
+        // Assign appropriate permissions to subject mentor role
+        $mentorRole = Role::where('name', 'subject_mentor')->first();
         $mentorPermissions = [
+            // Team permissions
             'view teams',
-            'view any teams',
             'view team',
-            'view any team',
-            'view team-invitations',
-            'view any team-invitations',
-            'view team-invitation',
-            'view any team-invitation',
-            'view users',
-            'view any users',
-            'view user',
-            'view any user',
-            'update user',
-            'view skills',
-            'view any skills',
-            'view skill',
-            'view any skill',
-            'view practices',
-            'view any practices',
-            'view practice',
-            'view any practice',
-            'create feedback',
+            
+            // Feedback management
             'view feedback',
-            'view own feedback',
             'view any feedback',
+            'create feedback',
             'update feedback',
-            'view any coach-students',
-            'view coach-students',
-            'view any coach-student',
-            'view coach-student',
+            
+            // Skill and practice viewing
+            'view skills',
+            'view skill',
+            'view practices',
+            'view practice',
+            
+            // View students in teams
+            'view users',
+            'view user',
         ];
         $mentorRole->givePermissionTo($mentorPermissions);
         
-        // Personal Coach
-        $coachRole = Role::create(['name' => 'personal_coach']);
+        // Assign appropriate permissions to personal coach role
+        $coachRole = Role::where('name', 'personal_coach')->first();
         $coachPermissions = [
+            // Team permissions
             'view teams',
-            'view any teams',
             'view team',
-            'view any team',
-            'view team-invitations',
-            'view any team-invitations',
-            'view team-invitation',
-            'view any team-invitation',
-            'view users',
-            'view any users',
-            'view user',
-            'view any user',
-            'update user',
-            'view skills',
-            'view any skills',
-            'view skill',
-            'view any skill',
-            'view practices',
-            'view any practices',
-            'view practice',
-            'view any practice',
-            'create feedback',
+            
+            // Feedback management
             'view feedback',
-            'view own feedback',
             'view any feedback',
+            'create feedback',
             'update feedback',
-            'view any coach-students',
+            
+            // Skill and practice viewing
+            'view skills',
+            'view skill',
+            'view practices',
+            'view practice',
+            
+            // View students and coaching relationships
+            'view users',
+            'view user',
             'view coach-students',
-            'view any coach-student',
             'view coach-student',
-            'create coach-students',
-            'update coach-students',
-            'create coach-student',
-            'update coach-student',
+            'view coach assignments',
         ];
         $coachRole->givePermissionTo($coachPermissions);
     }

@@ -6,6 +6,7 @@ use App\Models\Skill;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 class SkillPolicy extends ModelPolicy
 {
@@ -23,20 +24,24 @@ class SkillPolicy extends ModelPolicy
     public function update(User $user, Model $model): bool
     {
         // First check if user has the specific permission
-        if ($user->hasPermissionTo('update skills')) {
-            return true;
+        try {
+            if ($user->hasPermissionTo('update skills')) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Permission doesn't exist, try the next one
         }
         
         // Fallback to edit skills permission if update isn't available
-        if ($user->hasPermissionTo('edit skills')) {
-            return true;
+        try {
+            if ($user->hasPermissionTo('edit skills')) {
+                return true;
+            }
+        } catch (PermissionDoesNotExist $e) {
+            // Permission doesn't exist, use role-based check
         }
         
         // Admin can always update
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-        
-        return false;
+        return $user->hasRole('admin');
     }
 }

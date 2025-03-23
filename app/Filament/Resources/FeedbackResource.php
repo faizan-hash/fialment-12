@@ -26,31 +26,64 @@ class FeedbackResource extends BaseResource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('sender_id')
-                    ->relationship('sender', 'name')
-                    ->label('From')
-                    ->default(auth()->id())
-                    ->required(),
-                Forms\Components\Select::make('receiver_id')
-                    ->relationship('receiver', 'name')
-                    ->label('To')
-                    ->required(),
-                Forms\Components\Select::make('team_id')
-                    ->relationship('team', 'name')
-                    ->required(),
-                Forms\Components\Select::make('skill_id')
-                    ->relationship('skill', 'name')
-                    ->reactive()
-                    ->afterStateUpdated(fn (callable $set) => $set('practice_id', null))
-                    ->required(),
-                Forms\Components\Select::make('practice_id')
-                    ->relationship('practice', 'description', fn (Builder $query, callable $get) => 
-                        $query->where('skill_id', $get('skill_id'))
-                    )
-                    ->required()
-                    ->preload(),
-                Forms\Components\Textarea::make('comments')
-                    ->columnSpanFull(),
+                Forms\Components\Section::make('Feedback Details')
+                    ->schema([
+                        Forms\Components\Select::make('sender_id')
+                            ->relationship('sender', 'name')
+                            ->label('From')
+                            ->default(auth()->id())
+                            ->disabled()
+                            ->dehydrated()
+                            ->required(),
+                        Forms\Components\Toggle::make('for_self')
+                            ->label('For Myself')
+                            ->helperText('Toggle this if you want to record feedback for your own performance')
+                            ->reactive()
+                            ->afterStateUpdated(function (callable $set, callable $get, $state) {
+                                if ($state) {
+                                    $set('receiver_id', auth()->id());
+                                } else {
+                                    $set('receiver_id', null);
+                                }
+                            }),
+                        Forms\Components\Select::make('receiver_id')
+                            ->relationship('recipient', 'name')
+                            ->label('To')
+                            ->required()
+                            ->disabled(fn (callable $get) => $get('for_self'))
+                            ->hidden(fn (callable $get) => $get('for_self')),
+                        Forms\Components\Select::make('team_id')
+                            ->relationship('team', 'name')
+                            ->label('Project Team')
+                            ->required()
+                            ->reactive()
+                            ->afterStateUpdated(fn (callable $set) => $set('receiver_id', null)),
+                        Forms\Components\Toggle::make('is_positive')
+                            ->label('Is Positive Feedback')
+                            ->helperText('Toggle this if the feedback is positive, leave it off if it\'s an area for improvement')
+                            ->default(true),
+                    ])->columns(2),
+                    
+                Forms\Components\Section::make('Skill & Practice')
+                    ->schema([
+                        Forms\Components\Select::make('skill_id')
+                            ->relationship('skill', 'name', function (Builder $query) {
+                                return $query->with('skillArea')->orderBy('name');
+                            })
+                            ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->name} ({$record->skillArea->name})")
+                            ->reactive()
+                            ->afterStateUpdated(fn (callable $set) => $set('practice_id', null))
+                            ->required(),
+                        Forms\Components\Select::make('practice_id')
+                            ->relationship('practice', 'description', fn (Builder $query, callable $get) => 
+                                $query->where('skill_id', $get('skill_id'))
+                            )
+                            ->required()
+                            ->preload(),
+                        Forms\Components\Textarea::make('comments')
+                            ->placeholder('Provide specific details about what was observed')
+                            ->columnSpanFull(),
+                    ])->columns(2),
             ]);
     }
 
@@ -62,10 +95,17 @@ class FeedbackResource extends BaseResource
                     ->label('From')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('receiver.name')
+                Tables\Columns\TextColumn::make('recipient.name')
                     ->label('To')
                     ->searchable()
                     ->sortable(),
+                Tables\Columns\IconColumn::make('is_positive')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger')
+                    ->label('Positive'),
                 Tables\Columns\TextColumn::make('team.name')
                     ->searchable()
                     ->sortable(),
@@ -86,7 +126,15 @@ class FeedbackResource extends BaseResource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('team')
+                    ->relationship('team', 'name'),
+                Tables\Filters\SelectFilter::make('skill')
+                    ->relationship('skill', 'name'),
+                Tables\Filters\TernaryFilter::make('is_positive')
+                    ->label('Feedback Type')
+                    ->placeholder('All Feedback')
+                    ->trueLabel('Positive Feedback')
+                    ->falseLabel('Areas for Improvement'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
@@ -95,7 +143,8 @@ class FeedbackResource extends BaseResource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('created_at', 'desc');
     }
 
     public static function getRelations(): array

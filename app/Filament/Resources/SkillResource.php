@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\SkillResource\Pages;
 use App\Filament\Resources\SkillResource\RelationManagers;
 use App\Models\Skill;
+use App\Models\SkillArea;
 use App\Filament\BaseResource;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -29,6 +30,21 @@ class SkillResource extends BaseResource
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
+                Forms\Components\Select::make('skill_area_id')
+                    ->label('Skill Area')
+                    ->relationship('skillArea', 'name')
+                    ->preload()
+                    ->required()
+                    ->createOptionForm([
+                        Forms\Components\TextInput::make('name')
+                            ->required()
+                            ->maxLength(255),
+                        Forms\Components\Textarea::make('description')
+                            ->maxLength(65535)
+                            ->columnSpanFull(),
+                        Forms\Components\ColorPicker::make('color')
+                            ->required(),
+                    ]),
                 Forms\Components\Textarea::make('description')
                     ->columnSpanFull(),
             ]);
@@ -40,6 +56,14 @@ class SkillResource extends BaseResource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('skillArea.name')
+                    ->label('Skill Area')
+                    ->badge()
+                    ->color(fn ($record): string => $record->skillArea?->color ?? 'gray')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('description')
+                    ->limit(30)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -50,10 +74,12 @@ class SkillResource extends BaseResource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('skill_area')
+                    ->relationship('skillArea', 'name'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -75,6 +101,7 @@ class SkillResource extends BaseResource
             'index' => Pages\ListSkills::route('/'),
             'create' => Pages\CreateSkill::route('/create'),
             'edit' => Pages\EditSkill::route('/{record}/edit'),
+            'view' => Pages\ViewSkill::route('/{record}'),
         ];
     }
 }

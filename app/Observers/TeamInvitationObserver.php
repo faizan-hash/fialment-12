@@ -16,7 +16,6 @@ class TeamInvitationObserver
     {
         try {
             Mail::to($invitation->email)->send(new TeamInvitationMail($invitation));
-            Log::info('Team invitation email sent to: ' . $invitation->email);
         } catch (\Exception $e) {
             Log::error('Failed to send team invitation email: ' . $e->getMessage());
         }
