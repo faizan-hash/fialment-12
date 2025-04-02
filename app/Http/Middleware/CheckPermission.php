@@ -19,24 +19,24 @@ class CheckPermission
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Unauthorized.'], 403);
             }
-            
+
             return redirect()->route('login');
         }
-        
+
         // If no specific permissions are required, allow access
         if (empty($permissions)) {
             return $next($request);
         }
-        
+
         // Check if the user has all of the required permissions
         if ($request->user()->hasAllPermissions($permissions)) {
             return $next($request);
         }
-        
+
         if ($request->expectsJson()) {
             return response()->json(['error' => 'Unauthorized.'], 403);
         }
-        
-        return redirect()->route('dashboard')->with('error', 'You do not have permission to access this area.');
+
+        return redirect('/admin')->with('error', 'You do not have permission to access this area.');
     }
 }

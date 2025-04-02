@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Illuminate\Support\Facades\DB;
+use Filament\Notifications\Notification;
 
 new #[Layout('layouts.guest')] class extends Component
 {
@@ -20,19 +22,48 @@ new #[Layout('layouts.guest')] class extends Component
      */
     public function register(): void
     {
-        $validated = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
-        ]);
+        try {
+            // Check if the email already exists
+            $emailExists = DB::table('users')->where('email', $this->email)->exists();
+            if ($emailExists) {
+                $this->addError('email', 'This email is already in use.');
+                // Send error notification
+                Notification::make()
+                    ->danger()
+                    ->title('Registration Failed')
+                    ->body('The email address is already in use.')
+                    ->send();
+                return;
+            }
 
-        $validated['password'] = Hash::make($validated['password']);
+            $validated = $this->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+                'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
+            ]);
 
-        event(new Registered($user = User::create($validated)));
+            $validated['password'] = Hash::make($validated['password']);
 
-        Auth::login($user);
+            event(new Registered($user = User::create($validated)));
 
-        redirect()->route('filament.admin.pages.dashboard');
+            Auth::login($user);
+
+            // Display success notification
+            Notification::make()
+                ->success()
+                ->title('Registration Successful')
+                ->body('Your account has been created successfully.')
+                ->send();
+
+            $this->redirect('/admin');
+        } catch (\Exception $e) {
+            // Display error notification
+            Notification::make()
+                ->danger()
+                ->title('Registration Failed')
+                ->body('There was an error creating your account. Please try again.')
+                ->send();
+        }
     }
 }; ?>
 
@@ -85,7 +116,7 @@ new #[Layout('layouts.guest')] class extends Component
             </x-primary-button>
         </div>
     </form>
-    
+
     <div class="mt-6">
         <div class="relative">
             <div class="absolute inset-0 flex items-center">
@@ -95,7 +126,7 @@ new #[Layout('layouts.guest')] class extends Component
                 <span class="px-2 bg-white text-gray-500">{{ __('Or continue with') }}</span>
             </div>
         </div>
-        
+
         <div class="mt-6">
             <a href="{{ route('google.login') }}" class="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 text-sm font-medium text-gray-500 hover:text-gray-900">
                 <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

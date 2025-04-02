@@ -17,8 +17,6 @@ class Team extends Model
      */
     protected $fillable = [
         'name',
-        'description',
-        'created_by',
     ];
 
     /**
@@ -79,7 +77,7 @@ class Team extends Model
     {
         return $this->hasMany(CoachStudent::class);
     }
-    
+
     /**
      * Get the invitations for this team.
      */

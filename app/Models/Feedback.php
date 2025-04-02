@@ -72,6 +72,9 @@ class Feedback extends Model
 
     /**
      * Alias for the recipient relation for backward compatibility.
+     * 
+     * Note: The database column is 'receiver_id' but we prefer to use 'recipient'
+     * in the API for clarity.
      */
     public function receiver(): BelongsTo
     {

@@ -84,13 +84,18 @@ class StudentStatsWidget extends BaseWidget
             if ($userFeedbackCount > 0) {
                 // Use a cached value for average student feedback to reduce load
                 $avgStudentFeedback = Cache::remember('avg_student_feedback', 900, function() {
-                    return DB::table('feedback AS f')
-                        ->join('model_has_roles AS mr', 'f.receiver_id', '=', 'mr.model_id')
-                        ->join('roles AS r', 'mr.role_id', '=', 'r.id')
-                        ->where('r.name', 'student')
-                        ->select('f.receiver_id', DB::raw('count(*) as count'))
-                        ->groupBy('f.receiver_id')
-                        ->avg('count') ?: 0;
+                    return DB::table('feedback')
+                        ->join('model_has_roles', function($join) {
+                            $join->on('feedback.receiver_id', '=', 'model_has_roles.model_id')
+                                 ->where('model_has_roles.model_type', '=', 'App\\Models\\User');
+                        })
+                        ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+                        ->where('roles.name', 'student')
+                        ->select('feedback.receiver_id')
+                        ->groupBy('feedback.receiver_id')
+                        ->selectRaw('COUNT(*) as feedback_count')
+                        ->get()
+                        ->avg('feedback_count') ?: 0;
                 });
                 
                 $feedbackPercentile = $avgStudentFeedback > 0 

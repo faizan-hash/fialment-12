@@ -17,7 +17,7 @@ class PracticePolicy extends ModelPolicy
     {
         return 'practices';
     }
-    
+
     /**
      * Determine whether the user can update the model.
      */
@@ -31,7 +31,7 @@ class PracticePolicy extends ModelPolicy
         } catch (PermissionDoesNotExist $e) {
             // Permission doesn't exist, try the next one
         }
-        
+
         // Fallback to edit practices permission if update isn't available
         try {
             if ($user->hasPermissionTo('edit practices')) {
@@ -40,7 +40,7 @@ class PracticePolicy extends ModelPolicy
         } catch (PermissionDoesNotExist $e) {
             // Permission doesn't exist, use role-based check
         }
-        
+
         // Admin can always update
         return $user->hasRole('admin');
     }

@@ -19,26 +19,26 @@ class CheckRole
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Unauthorized.'], 403);
             }
-            
+
             return redirect()->route('login');
         }
-        
+
         // If no specific roles are required, allow access
         if (empty($roles)) {
             return $next($request);
         }
-        
+
         // Check if the user has any of the required roles
         foreach ($roles as $role) {
             if ($request->user()->hasRole($role)) {
                 return $next($request);
             }
         }
-        
+
         if ($request->expectsJson()) {
             return response()->json(['error' => 'Unauthorized.'], 403);
         }
-        
-        return redirect()->route('dashboard')->with('error', 'You do not have permission to access this area.');
+
+        return redirect('/admin')->with('error', 'You do not have permission to access this area.');
     }
 }

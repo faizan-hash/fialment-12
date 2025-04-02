@@ -12,6 +12,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Collection;
 
 class PracticeResource extends BaseResource
 {
@@ -31,7 +33,11 @@ class PracticeResource extends BaseResource
                     ->columnSpanFull(),
                 Forms\Components\Select::make('skill_id')
                     ->relationship('skill', 'name')
-                    ->required(),
+                    ->required()
+                    ->searchable()
+                    ->preload()
+                    ->placeholder('Select a skill')
+                    ->noSearchResultsMessage('No skills found'),
                 Forms\Components\TextInput::make('order')
                     ->required()
                     ->numeric()
@@ -67,10 +73,38 @@ class PracticeResource extends BaseResource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function ($record) {
+                        if ($record->feedback()->count() > 0) {
+                            // Abort the deletion with a notification
+                            Notification::make()
+                                ->danger()
+                                ->title('Unable to Delete')
+                                ->body('This practice cannot be deleted because it has associated feedback records.')
+                                ->send();
+
+                            $this->halt();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function (Collection $records) {
+                            foreach ($records as $record) {
+                                if ($record->feedback()->count() > 0) {
+                                    // Abort the deletion with a notification
+                                    Notification::make()
+                                        ->danger()
+                                        ->title('Unable to Delete')
+                                        ->body('One or more practices cannot be deleted because they have associated feedback records.')
+                                        ->send();
+
+                                    $this->halt();
+                                    return;
+                                }
+                            }
+                        }),
                 ]),
             ]);
     }

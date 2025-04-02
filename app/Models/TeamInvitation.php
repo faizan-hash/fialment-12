@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class TeamInvitation extends Model
 {
     use HasFactory;
-    
+
     /**
      * The attributes that are mass assignable.
      *
@@ -24,8 +24,9 @@ class TeamInvitation extends Model
         'expires_at',
         'accepted_at',
         'rejected_at',
+        'custom_message',
     ];
-    
+
     /**
      * The attributes that should be cast.
      *
@@ -36,7 +37,39 @@ class TeamInvitation extends Model
         'accepted_at' => 'datetime',
         'rejected_at' => 'datetime',
     ];
-    
+
+    /**
+     * Additional attributes that are not stored in the database.
+     *
+     * @var array<int, string>
+     */
+    public $appends = ['skip_observer_email'];
+
+    /**
+     * Flag to control whether the observer should send an email.
+     * Default is false (allow observer to send email).
+     *
+     * @var bool
+     */
+    protected $skipObserverEmail = false;
+
+    /**
+     * Get the skip_observer_email flag.
+     */
+    public function getSkipObserverEmailAttribute(): bool
+    {
+        return $this->skipObserverEmail;
+    }
+
+    /**
+     * Set the skip_observer_email flag.
+     */
+    public function setSkipObserverEmail(bool $value): self
+    {
+        $this->skipObserverEmail = $value;
+        return $this;
+    }
+
     /**
      * Get the team that owns the invitation.
      */
@@ -44,7 +77,7 @@ class TeamInvitation extends Model
     {
         return $this->belongsTo(Team::class);
     }
-    
+
     /**
      * Get the user who sent the invitation.
      */
@@ -52,7 +85,7 @@ class TeamInvitation extends Model
     {
         return $this->belongsTo(User::class, 'invited_by');
     }
-    
+
     /**
      * Determine if the invitation has been accepted.
      */
@@ -60,7 +93,7 @@ class TeamInvitation extends Model
     {
         return $this->accepted_at !== null;
     }
-    
+
     /**
      * Determine if the invitation has been rejected.
      */
@@ -68,7 +101,7 @@ class TeamInvitation extends Model
     {
         return $this->rejected_at !== null;
     }
-    
+
     /**
      * Determine if the invitation has expired.
      */
@@ -76,7 +109,7 @@ class TeamInvitation extends Model
     {
         return $this->expires_at->isPast();
     }
-    
+
     /**
      * Determine if the invitation is pending.
      */

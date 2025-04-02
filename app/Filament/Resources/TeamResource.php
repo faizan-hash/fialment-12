@@ -12,6 +12,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 
 class TeamResource extends BaseResource
 {
@@ -29,17 +30,46 @@ class TeamResource extends BaseResource
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\Textarea::make('description')
-                    ->columnSpanFull(),
-                Forms\Components\Select::make('created_by')
-                    ->relationship('creator', 'name')
-                    ->required()
-                    ->default(auth()->id())
-                    ->label('Created By'),
-                Forms\Components\Select::make('users')
-                    ->relationship('users', 'name')
-                    ->multiple()
-                    ->preload(),
+                Forms\Components\Section::make('Team Members')
+                    ->schema([
+                        Forms\Components\Select::make('students')
+                            ->label('Students')
+                            ->multiple()
+                            ->relationship(
+                                'users',
+                                'name',
+                                fn (Builder $query) => $query->role('student')
+                            )
+                            ->preload()
+                            ->searchable()
+                            ->placeholder('Select students')
+                            ->noSearchResultsMessage('No students found'),
+                        Forms\Components\Select::make('subject_mentors')
+                            ->label('Subject Mentors')
+                            ->multiple()
+                            ->relationship(
+                                'users',
+                                'name',
+                                fn (Builder $query) => $query->role('subject_mentor')
+                            )
+                            ->preload()
+                            ->searchable()
+                            ->placeholder('Select subject mentors')
+                            ->noSearchResultsMessage('No subject mentors found'),
+                        Forms\Components\Select::make('personal_coaches')
+                            ->label('Personal Coaches')
+                            ->multiple()
+                            ->relationship(
+                                'users',
+                                'name',
+                                fn (Builder $query) => $query->role('personal_coach')
+                            )
+                            ->preload()
+                            ->searchable()
+                            ->placeholder('Select personal coaches')
+                            ->noSearchResultsMessage('No personal coaches found'),
+                    ])
+                    ->columns(1),
             ]);
     }
 
@@ -51,7 +81,9 @@ class TeamResource extends BaseResource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('creator.name')
                     ->label('Created By')
-                    ->sortable(),
+                    ->sortable()
+                    ->default(fn() => Auth::user()->name)
+                    ->placeholder('Project Advisor'),
                 Tables\Columns\TextColumn::make('users_count')
                     ->counts('users')
                     ->label('Members'),
@@ -69,6 +101,7 @@ class TeamResource extends BaseResource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

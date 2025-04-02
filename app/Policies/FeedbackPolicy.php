@@ -17,7 +17,7 @@ class FeedbackPolicy extends ModelPolicy
     {
         return 'feedback';
     }
-    
+
     /**
      * Determine whether the user can update the model.
      */
@@ -31,7 +31,7 @@ class FeedbackPolicy extends ModelPolicy
         } catch (PermissionDoesNotExist $e) {
             // Permission doesn't exist, try the next one
         }
-        
+
         // Fallback to edit feedback permission if update isn't available
         try {
             if ($user->hasPermissionTo('edit feedback')) {
@@ -40,7 +40,7 @@ class FeedbackPolicy extends ModelPolicy
         } catch (PermissionDoesNotExist $e) {
             // Permission doesn't exist, use role-based check
         }
-        
+
         // Admin can always update
         return $user->hasRole('admin');
     }

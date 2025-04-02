@@ -35,6 +35,9 @@ class SkillResource extends BaseResource
                     ->relationship('skillArea', 'name')
                     ->preload()
                     ->required()
+                    ->searchable()
+                    ->placeholder('Select skill area')
+                    ->noSearchResultsMessage('No skill areas found')
                     ->createOptionForm([
                         Forms\Components\TextInput::make('name')
                             ->required()

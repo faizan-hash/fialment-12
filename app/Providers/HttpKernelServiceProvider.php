@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\DashboardAccessMiddleware;
+use App\Http\Middleware\FilamentAdminAccessMiddleware;
 use App\Http\Middleware\ProcessPendingInvitation;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
@@ -27,7 +29,9 @@ class HttpKernelServiceProvider extends ServiceProvider
         $router->aliasMiddleware('role', CheckRole::class);
         $router->aliasMiddleware('permission', CheckPermission::class);
         $router->aliasMiddleware('process.invitation', ProcessPendingInvitation::class);
-        
+        $router->aliasMiddleware('dashboard.access', DashboardAccessMiddleware::class);
+        $router->aliasMiddleware('filament.access', FilamentAdminAccessMiddleware::class);
+
         // Add the middleware to web group to process invitations after login
         $router->pushMiddlewareToGroup('web', ProcessPendingInvitation::class);
     }

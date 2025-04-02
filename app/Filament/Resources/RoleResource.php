@@ -19,9 +19,9 @@ class RoleResource extends BaseResource
     protected static ?string $model = Role::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-check';
-    
+
     protected static ?string $navigationGroup = 'Access Management';
-    
+
     protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
@@ -32,18 +32,16 @@ class RoleResource extends BaseResource
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
-                Forms\Components\Select::make('permissions')
-                    ->multiple()
-                    ->relationship('permissions', 'name')
-                    ->preload()
-                    ->searchable(),
-                Forms\Components\Select::make('guard_name')
-                    ->options([
-                        'web' => 'Web',
-                        'api' => 'API',
-                    ])
-                    ->default('web')
-                    ->required(),
+                Forms\Components\Section::make('Permissions')
+                    ->schema([
+                        Forms\Components\CheckboxList::make('permissions')
+                            ->relationship('permissions', 'name')
+                            ->searchable()
+                            ->bulkToggleable()
+                            ->columns(3),
+                    ]),
+                Forms\Components\Hidden::make('guard_name')
+                    ->default('web'),
             ]);
     }
 
@@ -52,8 +50,6 @@ class RoleResource extends BaseResource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('guard_name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('permissions.name')
                     ->badge()

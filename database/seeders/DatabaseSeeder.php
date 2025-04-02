@@ -13,7 +13,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Only call essential seeders
-        // 
+        //
         // NOTE: The following seeders should be removed from the codebase as they are no longer needed:
         // - AllModelsPermissionsSeeder.php
         // - AssignPermissionsToAdminSeeder.php
@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
         // - UpdateDatabaseSeeder.php
         //
         // Their functionality is included in RolesAndPermissionsSeeder.
-        
+
         $this->call([
             RolesAndPermissionsSeeder::class, // Creates all permissions and roles
             AdminUserSeeder::class,           // Creates admin user

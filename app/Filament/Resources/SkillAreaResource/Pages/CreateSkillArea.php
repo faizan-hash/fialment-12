@@ -9,4 +9,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateSkillArea extends CreateRecord
 {
     protected static string $resource = SkillAreaResource::class;
+    
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 } 

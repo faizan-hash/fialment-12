@@ -8,96 +8,167 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 
 class TeamInvitationController extends Controller
 {
     /**
      * Accept a team invitation.
      */
-    public function accept(Request $request, string $token)
+    public function accept(string $token)
     {
-        // Find the invitation by token
-        $invitation = TeamInvitation::where('token', $token)
-            ->whereNull('accepted_at')
-            ->whereNull('rejected_at')
-            ->first();
-        
-        if (!$invitation) {
-            return redirect()->route('login')
-                ->with('error', 'The invitation is invalid or has already been used.');
-        }
-        
-        // Check if the invitation has expired
-        if ($invitation->isExpired()) {
-            return redirect()->route('login')
-                ->with('error', 'This invitation has expired.');
-        }
-        
-        // Check if the user is already logged in
-        if (Auth::check()) {
-            $user = Auth::user();
-            
-            // Check if the logged-in user's email matches the invitation email
-            if ($user->email !== $invitation->email) {
-                return redirect()->route('dashboard')
-                    ->with('error', 'This invitation was sent to a different email address.');
+        // Log the full request URL and the extracted token for debugging
+        $fullUrl = request()->fullUrl();
+        \Illuminate\Support\Facades\Log::info('Invitation accept route hit', [
+            'token' => $token,
+            'full_url' => $fullUrl,
+            'request_uri' => $_SERVER['REQUEST_URI'] ?? 'none',
+            'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'none'
+        ]);
+
+        try {
+            // Clean the token in case it has URL encoding or extra characters
+            $token = trim($token);
+
+            $invitation = TeamInvitation::where('token', $token)
+                ->whereNull('accepted_at')
+                ->whereNull('rejected_at')
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if (!$invitation) {
+                // Log failure to find the invitation
+                \Illuminate\Support\Facades\Log::error('Invitation not found for token: ' . $token);
+                throw new \Exception('Invitation not found');
             }
-            
+
+            \Illuminate\Support\Facades\Log::info('Invitation found', [
+                'invitation_id' => $invitation->id,
+                'invitation_email' => $invitation->email,
+                'team_id' => $invitation->team_id,
+                'token_length' => strlen($token),
+                'original_token_length' => strlen($invitation->token),
+                'expires_at' => $invitation->expires_at->format('Y-m-d H:i:s'),
+            ]);
+
+            // If user is not logged in, store token in session and redirect to login
+            if (!Auth::check()) {
+                session()->put('pending_invitation', $token);
+                \Illuminate\Support\Facades\Log::info('User not logged in, storing token in session and redirecting');
+                return redirect()->route('login')
+                    ->with('info', 'Please log in to accept the invitation.');
+            }
+
+            // If user is logged in but email doesn't match, show error
+            if (Auth::user()->email !== $invitation->email) {
+                \Illuminate\Support\Facades\Log::warning('User email mismatch', [
+                    'user_email' => Auth::user()->email,
+                    'invitation_email' => $invitation->email,
+                ]);
+                return back()->with('error', 'This invitation is not for your account.');
+            }
+
             // Process the invitation acceptance
-            return $this->processInvitationAcceptance($invitation, $user);
-        }
-        
-        // Check if a user with the invitation email already exists
-        $user = User::where('email', $invitation->email)->first();
-        
-        if ($user) {
-            // User exists but is not logged in
-            session(['pending_invitation' => $token]);
+            $this->processInvitationAcceptance($invitation);
+            \Illuminate\Support\Facades\Log::info('Invitation accepted successfully');
+
+            // Clear any existing intended URL in the session
+            session()->forget('url.intended');
+
+            // Force direct redirect to /admin without using intended()
+            return redirect('/admin')
+                ->with('success', 'You have successfully joined the team.');
+        } catch (\Exception $e) {
+            // Log error for debugging
+            \Illuminate\Support\Facades\Log::error('Invitation acceptance error: ' . $e->getMessage(), [
+                'token' => $token,
+                'trace' => $e->getTraceAsString()
+            ]);
             return redirect()->route('login')
-                ->with('info', 'Please log in to accept the invitation.');
+                ->with('error', 'The invitation link is invalid or has expired.');
         }
-        
-        // No user exists with this email, store the token in session and redirect to registration
-        session(['pending_invitation' => $token]);
-        return redirect()->route('register')
-            ->with('info', 'Please create an account to join the team.');
     }
-    
+
     /**
      * Process the invitation acceptance.
      */
-    public function processInvitationAcceptance(TeamInvitation $invitation, User $user)
+    protected function processInvitationAcceptance(TeamInvitation $invitation)
     {
-        try {
-            // First, directly update the invitation accepted_at timestamp
-            // Use direct query builder instead of Eloquent to ensure update happens
-            $updated = DB::table('team_invitations')
-                ->where('id', $invitation->id)
-                ->update(['accepted_at' => now()]);
-            
-            // Then attach the user to the team
-            if (!$user->teams->contains($invitation->team_id)) {
-                $user->teams()->attach($invitation->team_id, ['role' => $invitation->role]);
-            }
-            
-            // Assign role to user if they don't already have it
-            if (!$user->hasRole($invitation->role)) {
-                $user->assignRole($invitation->role);
-            }
-            
-            return redirect()->route('filament.admin.pages.dashboard')
-                ->with('success', 'You have successfully joined the team: ' . $invitation->team->name);
-        } catch (\Exception $e) {
-            // Log the error
-            \Illuminate\Support\Facades\Log::error('Invitation processing error', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'invitation_id' => $invitation->id ?? null,
-                'user_id' => $user->id
-            ]);
-            
-            return redirect()->route('filament.admin.pages.dashboard')
-                ->with('error', 'An error occurred while processing your invitation: ' . $e->getMessage());
-        }
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // Update invitation status
+        $invitation->update([
+            'accepted_at' => now(),
+        ]);
+
+        // Attach user to team
+        $invitation->team->users()->attach($user->id);
+
+        // Assign role
+        $user->assignRole($invitation->role);
     }
-} 
+
+    public function login(Request $request)
+    {
+        $invitation = TeamInvitation::where('token', $request->token)
+            ->whereNull('accepted_at')
+            ->whereNull('rejected_at')
+            ->where('expires_at', '>', now())
+            ->firstOrFail();
+
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', Password::defaults()],
+        ]);
+
+        if (Auth::attempt($credentials)) {
+            $request->session()->regenerate();
+
+            // Process the invitation acceptance
+            $this->processInvitationAcceptance($invitation);
+
+            // Clear any existing intended URL in the session
+            session()->forget('url.intended');
+
+            // Use intended() with admin path as default
+            return redirect()->intended('/admin')
+                ->with('success', 'You have successfully joined the team.');
+        }
+
+        return back()->withErrors([
+            'email' => 'The provided credentials do not match our records.',
+        ])->onlyInput('email');
+    }
+
+    /**
+     * Public method to process invitation acceptance for external controllers.
+     */
+    public function acceptInvitation(TeamInvitation $invitation, User $user = null)
+    {
+        // If no user is provided, use the authenticated user
+        if (!$user) {
+            $user = Auth::user();
+        }
+
+        if (!$user) {
+            throw new \Exception('No user provided or authenticated to accept invitation.');
+        }
+
+        // Update invitation status
+        $invitation->update([
+            'accepted_at' => now(),
+        ]);
+
+        // Attach user to team
+        $invitation->team->users()->attach($user->id);
+
+        // Assign role
+        $user->assignRole($invitation->role);
+
+        // Force direct redirect to /admin
+        return redirect('/admin')
+            ->with('success', 'You have successfully joined the team.');
+    }
+}

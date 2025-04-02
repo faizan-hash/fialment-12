@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Http\Controllers\TeamInvitationController;
 use App\Models\TeamInvitation;
 use Closure;
 use Illuminate\Http\Request;
@@ -19,25 +18,50 @@ class ProcessPendingInvitation
         if (Auth::check()) {
             // Check if there's a pending invitation token in the session
             $token = session('pending_invitation');
-            
+
             if ($token) {
                 // Remove the token from the session
                 session()->forget('pending_invitation');
-                
-                // Find the invitation
-                $invitation = TeamInvitation::where('token', $token)
-                    ->whereNull('accepted_at')
-                    ->whereNull('rejected_at')
-                    ->first();
-                
-                if ($invitation && $invitation->email === Auth::user()->email) {
-                    // Process the invitation
-                    $controller = new TeamInvitationController();
-                    return $controller->processInvitationAcceptance($invitation, Auth::user());
+
+                try {
+                    // Find the invitation
+                    $invitation = TeamInvitation::where('token', $token)
+                        ->whereNull('accepted_at')
+                        ->whereNull('rejected_at')
+                        ->where('expires_at', '>', now())
+                        ->first();
+
+                    if ($invitation) {
+                        if ($invitation->email === Auth::user()->email) {
+                            // Process the invitation
+                            $invitation->update(['accepted_at' => now()]);
+
+                            // Attach user to team
+                            $invitation->team->users()->attach(Auth::id());
+
+                            // Assign role
+                            Auth::user()->assignRole($invitation->role);
+
+                            // Clear any existing intended URL
+                            session()->forget('url.intended');
+
+                            // Direct redirect to /admin without using intended()
+                            return redirect('/admin')
+                                ->with('success', 'You have successfully joined the team.');
+                        } else {
+                            // Clear any existing intended URL
+                            session()->forget('url.intended');
+
+                            return redirect('/admin')
+                                ->with('error', 'This invitation is not for your account.');
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Error processing invitation: ' . $e->getMessage());
                 }
             }
         }
-        
+
         return $next($request);
     }
-} 
+}

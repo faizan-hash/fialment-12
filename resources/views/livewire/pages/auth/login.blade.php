@@ -19,30 +19,30 @@ new #[Layout('layouts.guest')] class extends Component
         $this->form->authenticate();
 
         Session::regenerate();
-        
+
         // Check if there's a pending invitation
         $pendingInvitation = session('pending_invitation');
-        
+
         if ($pendingInvitation) {
             // Directly process the invitation instead of relying on middleware
             session()->forget('pending_invitation');
-            
+
             $invitation = \App\Models\TeamInvitation::where('token', $pendingInvitation)
                 ->whereNull('accepted_at')
                 ->whereNull('rejected_at')
                 ->first();
-            
+
             if ($invitation && $invitation->email === auth()->user()->email) {
                 $controller = new \App\Http\Controllers\TeamInvitationController();
                 $response = $controller->processInvitationAcceptance($invitation, auth()->user());
-                
+
                 // The response from processInvitationAcceptance already includes a redirect
                 return;
             }
-            
-            $this->redirect(route('filament.admin.pages.dashboard'));
+
+            $this->redirect('/admin');
         } else {
-            $this->redirect(route('filament.admin.pages.dashboard'));
+            $this->redirect('/admin');
         }
     }
 }; ?>
@@ -90,7 +90,7 @@ new #[Layout('layouts.guest')] class extends Component
                 {{ __('Log in') }}
             </x-primary-button>
         </div>
-        
+
         <div class="text-center mt-4">
             <p class="text-sm text-gray-600">
                 {{ __('Don\'t have an account?') }}
@@ -100,7 +100,7 @@ new #[Layout('layouts.guest')] class extends Component
             </p>
         </div>
     </form>
-    
+
     <div class="mt-6">
         <div class="relative">
             <div class="absolute inset-0 flex items-center">
@@ -110,7 +110,7 @@ new #[Layout('layouts.guest')] class extends Component
                 <span class="px-2 bg-white text-gray-500">{{ __('Or continue with') }}</span>
             </div>
         </div>
-        
+
         <div class="mt-6">
             <a href="{{ route('google.login') }}" class="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50 text-sm font-medium text-gray-500 hover:text-gray-900">
                 <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

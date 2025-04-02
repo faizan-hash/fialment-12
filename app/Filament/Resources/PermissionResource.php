@@ -38,11 +38,8 @@ class PermissionResource extends BaseResource
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
 
-                Forms\Components\TextInput::make('guard_name')
-                    ->label('Guard Name')
-                    ->default('web')
-                    ->required()
-                    ->maxLength(255),
+                Forms\Components\Hidden::make('guard_name')
+                    ->default('web'),
             ]);
     }
 
@@ -55,11 +52,6 @@ class PermissionResource extends BaseResource
 
                 Tables\Columns\TextColumn::make('name')
                     ->label('Permission Name')
-                    ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('guard_name')
-                    ->label('Guard Name')
                     ->searchable()
                     ->sortable(),
 

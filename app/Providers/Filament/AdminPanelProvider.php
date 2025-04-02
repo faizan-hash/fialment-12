@@ -51,8 +51,11 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\FilamentAdminAccessMiddleware::class,
             ])
             ->authGuard('web')
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             ->brandName('Sage Experience');
     }
 }

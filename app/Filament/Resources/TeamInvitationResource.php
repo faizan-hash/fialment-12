@@ -16,17 +16,20 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Filament\Notifications\Notification;
 
 class TeamInvitationResource extends BaseResource
 {
     protected static ?string $model = TeamInvitation::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-envelope';
-    
+
     protected static ?string $navigationLabel = 'Team Invitations';
-    
+
     protected static ?string $navigationGroup = 'Team Management';
-    
+
     protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
@@ -37,24 +40,85 @@ class TeamInvitationResource extends BaseResource
                     ->label('Team')
                     ->options(Team::pluck('name', 'id'))
                     ->searchable()
-                    ->required(),
-                Forms\Components\TextInput::make('email')
-                    ->email()
                     ->required()
-                    ->maxLength(255),
+                    ->reactive()
+                    ->afterStateUpdated(fn (callable $set) => $set('invite_type', null)),
+                Forms\Components\Select::make('invite_type')
+                    ->label('Invitation Type')
+                    ->options([
+                        'single' => 'Single Role',
+                        'bulk' => 'Bulk Invite',
+                    ])
+                    ->required()
+                    ->reactive()
+                    ->default('single'),
                 Forms\Components\Select::make('role')
                     ->options([
                         'student' => 'Student',
                         'subject_mentor' => 'Subject Mentor',
                         'personal_coach' => 'Personal Coach',
                     ])
-                    ->required(),
-                Forms\Components\DateTimePicker::make('expires_at')
-                    ->label('Expires At')
-                    ->default(Carbon::now()->addDays(7))
-                    ->required(),
+                    ->required()
+                    ->visible(fn (callable $get) => $get('invite_type') === 'single'),
+                Forms\Components\Select::make('bulk_option')
+                    ->label('Bulk Invitation Option')
+                    ->options(function (callable $get) {
+                        if (!$get('team_id') || $get('invite_type') !== 'bulk') {
+                            return [];
+                        }
+
+                        $team = Team::find($get('team_id'));
+                        if (!$team) return [];
+
+                        $options = ['all' => 'All Team Members'];
+
+                        // Check if team has students
+                        $studentsCount = $team->users()->role('student')->count();
+                        if ($studentsCount > 0) {
+                            $options['student'] = "Students ({$studentsCount})";
+                        }
+
+                        // Check if team has subject mentors
+                        $mentorsCount = $team->users()->role('subject_mentor')->count();
+                        if ($mentorsCount > 0) {
+                            $options['subject_mentor'] = "Subject Mentors ({$mentorsCount})";
+                        }
+
+                        // Check if team has personal coaches
+                        $coachesCount = $team->users()->role('personal_coach')->count();
+                        if ($coachesCount > 0) {
+                            $options['personal_coach'] = "Personal Coaches ({$coachesCount})";
+                        }
+
+                        return $options;
+                    })
+                    ->visible(fn (callable $get) => $get('invite_type') === 'bulk')
+                    ->required(fn (callable $get) => $get('invite_type') === 'bulk'),
+                Forms\Components\Hidden::make('email')
+                    ->dehydrateStateUsing(function (callable $get) {
+                        if ($get('invite_type') !== 'single') {
+                            return 'bulk_invite@placeholder.com';
+                        }
+
+                        // Get the team
+                        $team = Team::find($get('team_id'));
+                        if (!$team) {
+                            return 'team_not_found@placeholder.com';
+                        }
+
+                        $role = $get('role');
+
+                        // Find users with the selected role
+                        $users = $team->users()->role($role)->get();
+
+                        // Return first user's email or placeholder
+                        return $users->isNotEmpty() ? $users->first()->email : 'no_users_found@placeholder.com';
+                    })
+                    ->visible(fn (callable $get) => $get('invite_type') === 'single'),
+                Forms\Components\Hidden::make('expires_at')
+                    ->default(Carbon::now()->addDays(7)),
                 Forms\Components\Hidden::make('invited_by')
-                    ->dehydrateStateUsing(fn () => auth()->id()),
+                    ->dehydrateStateUsing(fn () => Auth::id()),
                 Forms\Components\Hidden::make('token')
                     ->dehydrateStateUsing(fn () => Str::random(64)),
             ]);
@@ -69,6 +133,13 @@ class TeamInvitationResource extends BaseResource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('email')
+                    ->label('Email')
+                    ->getStateUsing(function (TeamInvitation $record) {
+                        // Try to find the real user email from users table
+                        $user = User::where('email', $record->email)->first();
+                        // Return user email if found, otherwise the invitation email
+                        return $user ? $user->email : $record->email;
+                    })
                     ->searchable(),
                 Tables\Columns\TextColumn::make('role')
                     ->badge()
@@ -84,12 +155,6 @@ class TeamInvitationResource extends BaseResource
                         'personal_coach' => 'Personal Coach',
                         default => $state,
                     }),
-                Tables\Columns\TextColumn::make('inviter.name')
-                    ->label('Invited By')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('expires_at')
-                    ->dateTime()
-                    ->sortable(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn (TeamInvitation $record): string => match (true) {
@@ -129,7 +194,7 @@ class TeamInvitationResource extends BaseResource
                         if (empty($data['value'])) {
                             return $query;
                         }
-                        
+
                         return match($data['value']) {
                             'pending' => $query->whereNull('accepted_at')
                                 ->whereNull('rejected_at')
@@ -152,15 +217,53 @@ class TeamInvitationResource extends BaseResource
                     ->color('warning')
                     ->visible(fn (TeamInvitation $record) => $record->isPending())
                     ->action(function (TeamInvitation $record) {
-                        // Actually send the invitation email
-                        \Illuminate\Support\Facades\Mail::to($record->email)
-                            ->send(new \App\Mail\TeamInvitationMail($record));
-                            
-                        \Filament\Notifications\Notification::make()
-                            ->success()
-                            ->title('Invitation Resent')
-                            ->body('An invitation email has been resent to ' . $record->email)
-                            ->send();
+                        // Find the team
+                        $team = Team::find($record->team_id);
+
+                        if (!$team) {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('Failed to Resend')
+                                ->body('Team not found.')
+                                ->send();
+                            return;
+                        }
+
+                        // Find all users with the selected role in this team
+                        $users = $team->users()->role($record->role)->get();
+                        $count = 0;
+
+                        foreach ($users as $user) {
+                            if (!$user->email) continue;
+
+                            // Use cache to prevent duplicate emails
+                            $cacheKey = 'invitation_email_sent_' . $record->id . '_' . $user->id . '_' . time();
+
+                            // Send the invitation email only if not cached
+                            if (!\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+                                \Illuminate\Support\Facades\Mail::to($user->email)
+                                    ->queue(new \App\Mail\TeamInvitationMail($record));
+
+                                // Mark as processed (1 hour cache)
+                                \Illuminate\Support\Facades\Cache::put($cacheKey, true, now()->addHour());
+
+                                $count++;
+                            }
+                        }
+
+                        if ($count > 0) {
+                            \Filament\Notifications\Notification::make()
+                                ->success()
+                                ->title('Invitation Resent')
+                                ->body("Invitation resent to {$count} users with the role {$record->role}")
+                                ->send();
+                        } else {
+                            \Filament\Notifications\Notification::make()
+                                ->danger()
+                                ->title('Failed to Resend')
+                                ->body('No users found with this role in the team.')
+                                ->send();
+                        }
                     }),
             ])
             ->bulkActions([

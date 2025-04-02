@@ -28,12 +28,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        // Check if the user is an admin and redirect to the Filament panel
-        if (Auth::user()->hasRole('admin')) {
-            return redirect()->route('filament.admin.pages.dashboard');
-        }
-
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect('/admin');
     }
 
     /**

@@ -19,6 +19,11 @@ class ViewSkill extends ViewRecord
         ];
     }
     
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+    
     public function infolist(Infolist $infolist): Infolist
     {
         return $infolist

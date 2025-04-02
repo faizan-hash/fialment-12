@@ -17,7 +17,7 @@ class SkillsAndPracticesSeeder extends Seeder
     {
         // Get the Collaboration skill area
         $collaborationArea = SkillArea::where('name', 'Collaboration')->first();
-        
+
         // Skill 1: Offering a Teammate Assistance
         $skill1 = Skill::create([
             'name' => 'Offering a Teammate Assistance',
@@ -45,7 +45,7 @@ class SkillsAndPracticesSeeder extends Seeder
 
         // Get the Critical Thinking skill area
         $criticalThinkingArea = SkillArea::where('name', 'Critical Thinking')->first();
-        
+
         // Skill 2: Identifying Bias(es) from a Particular Source
         $skill2 = Skill::create([
             'name' => 'Identifying Bias(es) from a Particular Source',
@@ -73,7 +73,7 @@ class SkillsAndPracticesSeeder extends Seeder
 
         // Get the Project Management skill area
         $projectManagementArea = SkillArea::where('name', 'Project Management')->first();
-        
+
         // Skill 3: Creating and Communicating a New Timeline When Needed
         $skill3 = Skill::create([
             'name' => 'Creating and Communicating a New Timeline When Needed',
@@ -98,57 +98,57 @@ class SkillsAndPracticesSeeder extends Seeder
             'description' => 'Communicate the reasons for the change and ensure everyone is aligned.',
             'order' => 3,
         ]);
-        
+
         // Add more skills to fill out the skill areas
-        
+
         // Communication skill area
         $communicationArea = SkillArea::where('name', 'Communication')->first();
-        
+
         $skill4 = Skill::create([
             'name' => 'Building Relationships',
             'description' => 'Establish and maintain positive professional relationships.',
             'skill_area_id' => $communicationArea->id,
         ]);
-        
+
         Practice::create([
             'skill_id' => $skill4->id,
             'description' => 'Initiate conversations with new team members.',
             'order' => 1,
         ]);
-        
+
         Practice::create([
             'skill_id' => $skill4->id,
             'description' => 'Show genuine interest in others\' perspectives and experiences.',
             'order' => 2,
         ]);
-        
+
         Practice::create([
             'skill_id' => $skill4->id,
             'description' => 'Maintain regular communication with team members.',
             'order' => 3,
         ]);
-        
+
         // Self-Awareness skill area
         $selfAwarenessArea = SkillArea::where('name', 'Self-Awareness & Self-Management')->first();
-        
+
         $skill5 = Skill::create([
             'name' => 'Reflecting on Performance',
             'description' => 'Analyze personal performance and identify areas for improvement.',
             'skill_area_id' => $selfAwarenessArea->id,
         ]);
-        
+
         Practice::create([
             'skill_id' => $skill5->id,
             'description' => 'Document personal successes and challenges after key activities.',
             'order' => 1,
         ]);
-        
+
         Practice::create([
             'skill_id' => $skill5->id,
             'description' => 'Ask for specific feedback from peers and mentors.',
             'order' => 2,
         ]);
-        
+
         Practice::create([
             'skill_id' => $skill5->id,
             'description' => 'Set concrete goals for improvement based on reflection.',

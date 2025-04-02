@@ -32,9 +32,11 @@ class CoachStudentResource extends BaseResource
                     ->relationship('team', 'name')
                     ->required()
                     ->reactive()
-                    ->afterStateUpdated(fn (Forms\Components\Select $component) => 
-                        $component->getContainer()->getComponent('coach_id')->getContainer()->getComponent('student_id')->setState('')
-                    ),
+                    ->afterStateUpdated(function ($state, $set) {
+                        // When team changes, reset the student_id value
+                        $set('student_id', null);
+                        $set('coach_id', null);
+                    }),
                 Forms\Components\Select::make('coach_id')
                     ->relationship(
                         'coach', 

@@ -34,6 +34,7 @@ class UserResource extends BaseResource
                 Forms\Components\TextInput::make('email')
                     ->email()
                     ->required()
+                    ->unique(ignoreRecord: true)
                     ->maxLength(255),
                 Forms\Components\DateTimePicker::make('email_verified_at')
                     ->hiddenOn('create'),
@@ -45,9 +46,9 @@ class UserResource extends BaseResource
                     ->maxLength(255),
                 Forms\Components\Select::make('roles')
                     ->label('Role')
-                    ->multiple()
                     ->preload()
                     ->relationship('roles', 'name')
+                    ->required()
                     ->createOptionForm([
                         Forms\Components\TextInput::make('name')
                             ->required(),
@@ -55,6 +56,9 @@ class UserResource extends BaseResource
                             ->default('web')
                             ->required(),
                     ]),
+                Forms\Components\Toggle::make('status')
+                    ->label('Active')
+                    ->default(true),
             ]);
     }
 
@@ -62,6 +66,9 @@ class UserResource extends BaseResource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
@@ -83,6 +90,10 @@ class UserResource extends BaseResource
                         'personal_coach' => 'Personal Coach',
                         default => $state,
                     }),
+                Tables\Columns\ToggleColumn::make('status')
+                    ->label('Active')
+                    ->onColor('success')
+                    ->offColor('danger'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -97,6 +108,7 @@ class UserResource extends BaseResource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
